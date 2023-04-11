@@ -89,31 +89,8 @@ int run_pipeline(char **arglist, int pipe_index) {
     return true;
 }
 
-int prepare(void) {
-    struct sigaction zombie_reaper, ignore_ctrl_c;
-    zombie_reaper.sa_handler = &sigchld_handler;
-    zombie_reaper.sa_flags = SA_RESTART | SA_NOCLDSTOP;
-    ignore_ctrl_c.sa_handler = SIG_IGN;
-    ignore_ctrl_c.sa_flags = SA_RESTART;
-    if (sigaction(SIGCHLD, &zombie_reaper, NULL) != 0) {
-        perror("sigaction(SIGCHLD)");
-        return -1;
-    }
-    if (sigaction(SIGINT, &ignore_ctrl_c, NULL) != 0) {
-        perror("sigaction(SIGINT)");
-        return -1;
-    }
-    return 0;
-}
-
-int process_arglist(int count, char **arglist) {
+int run_single_process(int count, char **arglist) {
     bool run_in_foreground = strcmp(arglist[count - 1], AMPERSAND) != 0;
-    int pipe_index = index_of_pipe(arglist);
-
-    if (pipe_index != -1) {
-        return run_pipeline(arglist, pipe_index);
-    }
-
     pid_t pid = fork();
     if (pid < 0) {
         perror("fork");
@@ -133,8 +110,42 @@ int process_arglist(int count, char **arglist) {
         pid_t wpid = waitpid(pid, NULL, WUNTRACED);
         if (wpid < 0 && errno != ECHILD && errno != EINTR) {
             perror("waitpid");
-            return false;
+            return true;
         }
+    }
+
+    return true;
+}
+
+int prepare(void) {
+    struct sigaction zombie_reaper, ignore_ctrl_c;
+    zombie_reaper.sa_handler = &sigchld_handler;
+    zombie_reaper.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+    ignore_ctrl_c.sa_handler = SIG_IGN;
+    ignore_ctrl_c.sa_flags = SA_RESTART;
+    if (sigaction(SIGCHLD, &zombie_reaper, NULL) != 0) {
+        perror("sigaction(SIGCHLD)");
+        return -1;
+    }
+    if (sigaction(SIGINT, &ignore_ctrl_c, NULL) != 0) {
+        perror("sigaction(SIGINT)");
+        return -1;
+    }
+    return 0;
+}
+
+int process_arglist(int count, char **arglist) {
+    int pipe_index = index_of_pipe(arglist);
+    bool success = true;
+
+    if (pipe_index == -1) {
+        success = run_single_process(count, arglist);
+    } else {
+        success = run_pipeline(arglist, pipe_index);
+    }
+
+    if (!success) {
+        exit(EXIT_FAILURE);
     }
 
     return true;
