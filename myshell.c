@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -8,6 +9,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#define REDIRECTION ">"
 #define AMPERSAND "&"
 #define PIPE "|"
 #define PIPE_READ_END 0
@@ -27,6 +29,20 @@ int index_of_pipe(char **arglist) {
         }
     }
     return -1;
+}
+
+bool redirect_output(char *fpath) {
+    int fd = creat(fpath, (mode_t)0644);
+    if (fd < 0) {
+        perror("creat");
+        return false;
+    }
+    if (dup2(fd, STDOUT_FILENO) < 0) {
+        perror("dup2");
+        return false;
+    }
+    close(fd);
+    return true;
 }
 
 int run_pipeline(char **arglist, int pipe_index) {
@@ -91,6 +107,9 @@ int run_pipeline(char **arglist, int pipe_index) {
 
 int run_single_process(int count, char **arglist) {
     bool run_in_foreground = strcmp(arglist[count - 1], AMPERSAND) != 0;
+    bool should_redirect_output =
+        count > 1 && strcmp(arglist[count - 2], REDIRECTION) == 0;
+
     pid_t pid = fork();
     if (pid < 0) {
         perror("fork");
@@ -98,6 +117,12 @@ int run_single_process(int count, char **arglist) {
     } else if (pid == 0) {
         if (run_in_foreground) {
             signal(SIGINT, SIG_DFL);
+            if (should_redirect_output) {
+                arglist[count - 2] = NULL;
+                if (!redirect_output(arglist[count - 1])) {
+                    return false;
+                }
+            }
         } else {
             arglist[count - 1] = NULL;
         }
