@@ -1,0 +1,6 @@
+#ifndef MESSAGE_SLOT_H
+#define MESSAGE_SLOT_H
+
+#define DEVICE_MAJOR_NUMBER 235
+
+#endif
