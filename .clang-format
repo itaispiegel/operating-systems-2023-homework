@@ -3,5 +3,5 @@ Language: Cpp
 IndentWidth: 4
 ---
 Language: Json
-IndentWidth: 2
+IndentWidth: 4
 ---
