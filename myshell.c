@@ -23,6 +23,10 @@ void sigchld_handler(int signum) {
     errno = saved_errno;
 }
 
+/**
+ * Finds a pipe in the given string array and returns its index.
+ * If a pipe isn't found, -1 is returned.
+ */
 int index_of_pipe(char **arglist) {
     for (int i = 0; arglist[i] != NULL; i++) {
         if (strcmp(arglist[i], PIPE) == 0) {
@@ -32,6 +36,10 @@ int index_of_pipe(char **arglist) {
     return -1;
 }
 
+/**
+ * Redirects the output to the file in the given path.
+ * Returns true iff the redirection succeeds.
+ */
 bool redirect_output(char *fpath) {
     int fd = creat(fpath, (mode_t)0644);
     if (fd < 0) {
@@ -46,6 +54,10 @@ bool redirect_output(char *fpath) {
     return true;
 }
 
+/**
+ * Redirects the input from the file in the given path.
+ * Returns true iff the redirection succeeds.
+ */
 bool redirect_input(char *fpath) {
     int fd = open(fpath, O_RDONLY);
     if (fd < 0) {
@@ -60,6 +72,10 @@ bool redirect_input(char *fpath) {
     return true;
 }
 
+/**
+ * Runs a pipeline with the given argument list, assuming that the given index
+ * is the pipe's index. Returns true iff the pipeline succeeds.
+ */
 int run_pipeline(char **arglist, int pipe_index) {
     pid_t pid1, pid2, wpid;
     int pipefd[2];
@@ -120,6 +136,14 @@ int run_pipeline(char **arglist, int pipe_index) {
     return true;
 }
 
+/**
+ * Runs a single process with the given argument list, with the given size.
+ * Assumes that size is valid.
+ * The function supports running the process in the background if the last
+ * argument is &. It also supports input/output redirection by setting the
+ * second last argument to </>. Assumes </> are mutually exclusive. Returns true
+ * iff the process run succesfully.
+ */
 int run_single_process(int count, char **arglist) {
     bool run_in_foreground = strcmp(arglist[count - 1], AMPERSAND) != 0;
     bool should_redirect_output =
