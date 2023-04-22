@@ -49,7 +49,6 @@ int device_open(struct inode *inode, struct file *file) {
     fdata->minor = iminor(inode);
     file->private_data = fdata;
 
-    // TODO Release
     if (channels_trees[fdata->minor] == NULL) {
         channels_trees[fdata->minor] = (struct radix_tree_root *)kmalloc(
             sizeof(struct radix_tree_root), GFP_KERNEL);
