@@ -9,7 +9,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define REDIRECTION ">"
+#define INPUT_REDIRECTION "<"
+#define OUTPUT_REDIRECTION ">"
 #define AMPERSAND "&"
 #define PIPE "|"
 #define PIPE_READ_END 0
@@ -38,6 +39,20 @@ bool redirect_output(char *fpath) {
         return false;
     }
     if (dup2(fd, STDOUT_FILENO) < 0) {
+        perror("dup2");
+        return false;
+    }
+    close(fd);
+    return true;
+}
+
+bool redirect_input(char *fpath) {
+    int fd = open(fpath, O_RDONLY);
+    if (fd < 0) {
+        perror("open");
+        return false;
+    }
+    if (dup2(fd, STDIN_FILENO) < 0) {
         perror("dup2");
         return false;
     }
@@ -108,7 +123,9 @@ int run_pipeline(char **arglist, int pipe_index) {
 int run_single_process(int count, char **arglist) {
     bool run_in_foreground = strcmp(arglist[count - 1], AMPERSAND) != 0;
     bool should_redirect_output =
-        count > 1 && strcmp(arglist[count - 2], REDIRECTION) == 0;
+        count > 1 && strcmp(arglist[count - 2], OUTPUT_REDIRECTION) == 0;
+    bool should_redirect_input =
+        count > 1 && strcmp(arglist[count - 2], INPUT_REDIRECTION) == 0;
 
     pid_t pid = fork();
     if (pid < 0) {
@@ -120,6 +137,11 @@ int run_single_process(int count, char **arglist) {
             if (should_redirect_output) {
                 arglist[count - 2] = NULL;
                 if (!redirect_output(arglist[count - 1])) {
+                    return false;
+                }
+            } else if (should_redirect_input) {
+                arglist[count - 2] = NULL;
+                if (!redirect_input(arglist[count - 1])) {
                     return false;
                 }
             }
