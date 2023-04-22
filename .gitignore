@@ -56,3 +56,6 @@ dkms.conf
 
 message_sender
 message_reader
+
+tester
+tester2
