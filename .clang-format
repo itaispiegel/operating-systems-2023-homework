@@ -1,0 +1,4 @@
+---
+AllowShortFunctionsOnASingleLine: false
+Language: Cpp
+IndentWidth: 4
