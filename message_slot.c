@@ -19,9 +19,9 @@ struct channel {
 };
 
 /* An array of radix trees, which holds a tree for each minor.
- Each tree is a mapping between the channel id and it's relevant channel struct.
+ Each tree is a mapping between the channel id and its matching channel struct.
  */
-static struct radix_tree_root **channels_trees;
+static struct radix_tree_root *channels_trees[MINORS_COUNT];
 
 static struct channel *get_channel_from_file(struct file *file) {
     unsigned int minor = iminor(file->f_inode);
@@ -34,13 +34,14 @@ static void free_radix_tree(struct radix_tree_root *root) {
     struct radix_tree_iter iter;
     void **slot;
 
-    radix_tree_for_each_slot(slot, root, &iter, 0) { kfree(*slot); }
+    if (root != NULL) {
+        radix_tree_for_each_slot(slot, root, &iter, 0) { kfree(*slot); }
+    }
 }
 
 int device_open(struct inode *inode, struct file *file) {
-    struct file_data *fdata =
-        (struct file_data *)kmalloc(sizeof(struct file_data), GFP_KERNEL);
-    if (fdata == NULL) {
+    struct file_data *fdata;
+    if ((fdata = kmalloc(sizeof(struct file_data), GFP_KERNEL)) == NULL) {
         printk(KERN_ERR "Couldn't allocate message slot file descriptor");
         return 1;
     }
@@ -50,8 +51,8 @@ int device_open(struct inode *inode, struct file *file) {
     file->private_data = fdata;
 
     if (channels_trees[fdata->minor] == NULL) {
-        channels_trees[fdata->minor] = (struct radix_tree_root *)kmalloc(
-            sizeof(struct radix_tree_root), GFP_KERNEL);
+        channels_trees[fdata->minor] =
+            kmalloc(sizeof(struct radix_tree_root), GFP_KERNEL);
         if (channels_trees[fdata->minor] == NULL) {
             printk(KERN_ERR "Couldn't allocate radix tree for message slot");
             return 1;
@@ -77,7 +78,7 @@ long device_ioctl(struct file *file, unsigned int cmd, unsigned long param) {
 
     channels_tree = channels_trees[fdata->minor];
     if (radix_tree_lookup(channels_tree, fdata->channel_id) == NULL) {
-        channel = (struct channel *)kmalloc(sizeof(struct channel), GFP_KERNEL);
+        channel = kmalloc(sizeof(struct channel), GFP_KERNEL);
         radix_tree_insert(channels_tree, fdata->channel_id, channel);
     }
 
@@ -148,13 +149,6 @@ int init_module(void) {
         return 1;
     }
 
-    channels_trees = (struct radix_tree_root **)kcalloc(
-        MINORS_COUNT, sizeof(struct radix_tree_root **), GFP_KERNEL);
-    if (channels_trees == NULL) {
-        printk(KERN_ERR "Error initializing channels trees");
-        return 1;
-    }
-
     printk(KERN_INFO "Registered message slot\n");
     return 0;
 }
@@ -167,5 +161,4 @@ void cleanup_module(void) {
     for (i = 0; i < MINORS_COUNT; i++) {
         free_radix_tree(channels_trees[i]);
     }
-    kfree(channels_trees);
 }
