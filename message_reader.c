@@ -32,23 +32,20 @@ int main(int argc, char *argv[]) {
     int fd;
     char buffer[BUFFER_SIZE];
     ssize_t bytes_read;
-    struct arguments *args =
-        (struct arguments *)malloc(sizeof(struct arguments));
-    parse_arguments(args, argc, argv);
+    struct arguments args;
+    parse_arguments(&args, argc, argv);
 
-    fd = open(args->message_slot_path, O_RDONLY);
-    if (fd < 0) {
+    if ((fd = open(args.message_slot_path, O_RDONLY)) < 0) {
         perror("open");
         return errno;
     }
 
-    if (ioctl(fd, MSG_SLOT_CHANNEL, args->channel_id) < 0) {
+    if (ioctl(fd, MSG_SLOT_CHANNEL, args.channel_id) < 0) {
         perror("ioctl");
         return errno;
     }
 
-    bytes_read = read(fd, buffer, BUFFER_SIZE);
-    if (bytes_read < 0) {
+    if ((bytes_read = read(fd, buffer, BUFFER_SIZE)) < 0) {
         perror("read");
         return errno;
     }
