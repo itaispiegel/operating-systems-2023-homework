@@ -76,7 +76,7 @@ void enqueue(void *item) {
 void *dequeue(void) {
     void *item;
     mtx_lock(&queue_mtx);
-    if (head == NULL) {
+    while (head == NULL) {
         waiting_cnt++;
         cnd_wait(&queue_not_empty_cnd, &queue_mtx);
         waiting_cnt--;
