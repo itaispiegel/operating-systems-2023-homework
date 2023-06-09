@@ -63,11 +63,10 @@ void enqueue(void *item) {
     mtx_lock(&queue_mtx);
     if (head == NULL) {
         head = new_tail;
-        tail = new_tail;
     } else {
         tail->next = new_tail;
-        tail = new_tail;
     }
+    tail = new_tail;
     queue_size++;
     mtx_unlock(&queue_mtx);
     cnd_signal(&queue_not_empty_cnd);
