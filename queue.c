@@ -18,9 +18,8 @@ struct queue {
     size_t size;
 };
 
-static bool initialized;
-struct queue data_queue;
-struct queue dequeue_order;
+static struct queue data_queue;
+static struct queue dequeue_order;
 static size_t visited_items;
 
 static mtx_t queue_mtx;
@@ -62,7 +61,6 @@ static inline void *pop_queue_head(struct queue *q) {
 }
 
 void initQueue(void) {
-    initialized = true;
     init_queue_struct(&data_queue);
     init_queue_struct(&dequeue_order);
     visited_items = 0;
@@ -73,19 +71,18 @@ void destroyQueue(void) {
     void *item;
     while (tryDequeue(&item)) {
     }
-    initialized = false;
     mtx_destroy(&queue_mtx);
 }
 
 void enqueue(void *item) {
-    struct queue_node *new_tail = queue_node_init(item);
-    cnd_t *queue_not_empty_cnd;
+    struct queue_node *new_tail_ptr = queue_node_init(item);
+    cnd_t *queue_not_empty_cnd_ptr;
     mtx_lock(&queue_mtx);
-    queue_enqueue(&data_queue, new_tail);
+    queue_enqueue(&data_queue, new_tail_ptr);
     if (dequeue_order.head != NULL) {
-        queue_not_empty_cnd = pop_queue_head(&dequeue_order);
+        queue_not_empty_cnd_ptr = pop_queue_head(&dequeue_order);
         mtx_unlock(&queue_mtx);
-        cnd_signal(queue_not_empty_cnd);
+        cnd_signal(queue_not_empty_cnd_ptr);
     } else {
         mtx_unlock(&queue_mtx);
     }
