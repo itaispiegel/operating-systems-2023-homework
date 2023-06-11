@@ -12,38 +12,60 @@ struct queue_node {
     struct queue_node *next;
 };
 
+struct queue {
+    struct queue_node *head;
+    struct queue_node *tail;
+    size_t size;
+};
+
 static bool initialized;
-static struct queue_node *head;
-static struct queue_node *tail;
-static size_t queue_size;
+struct queue data_queue;
+struct queue dequeue_order;
 static size_t visited_items;
-static size_t waiting_cnt;
 
 static mtx_t queue_mtx;
-static cnd_t queue_not_empty_cnd;
 
-static void *pop_queue_head() {
+static inline struct queue_node *queue_node_init(void *item) {
+    struct queue_node *node = malloc(sizeof(struct queue_node));
+    node->item = item;
+    node->next = NULL;
+    return node;
+}
+
+static inline void init_queue_struct(struct queue *q) {
+    q->head = NULL;
+    q->tail = NULL;
+    q->size = 0;
+}
+
+static inline void queue_enqueue(struct queue *q, struct queue_node *new_tail) {
+    if (q->head == NULL) {
+        q->head = new_tail;
+    } else {
+        q->tail->next = new_tail;
+    }
+    q->tail = new_tail;
+    q->size++;
+}
+
+static inline void *pop_queue_head(struct queue *q) {
     void *item;
     struct queue_node *prev_head;
-    prev_head = head;
-    item = head->item;
-    if ((head = head->next) == NULL) {
-        tail = NULL;
+    prev_head = q->head;
+    item = q->head->item;
+    if ((q->head = q->head->next) == NULL) {
+        q->tail = NULL;
     }
-    queue_size--;
-    visited_items++;
+    q->size--;
     free(prev_head);
     return item;
 }
 
 void initQueue(void) {
     initialized = true;
-    head = NULL;
-    tail = NULL;
-    queue_size = 0;
+    init_queue_struct(&data_queue);
+    init_queue_struct(&dequeue_order);
     visited_items = 0;
-    waiting_cnt = 0;
-    cnd_init(&queue_not_empty_cnd);
     mtx_init(&queue_mtx, mtx_plain);
 }
 
@@ -52,57 +74,60 @@ void destroyQueue(void) {
     while (tryDequeue(&item)) {
     }
     initialized = false;
-    cnd_destroy(&queue_not_empty_cnd);
     mtx_destroy(&queue_mtx);
 }
 
 void enqueue(void *item) {
-    struct queue_node *new_tail = malloc(sizeof(struct queue_node));
-    new_tail->item = item;
-    new_tail->next = NULL;
+    struct queue_node *new_tail = queue_node_init(item);
+    cnd_t *queue_not_empty_cnd;
     mtx_lock(&queue_mtx);
-    if (head == NULL) {
-        head = new_tail;
+    queue_enqueue(&data_queue, new_tail);
+    if (dequeue_order.head != NULL) {
+        queue_not_empty_cnd = pop_queue_head(&dequeue_order);
+        mtx_unlock(&queue_mtx);
+        cnd_signal(queue_not_empty_cnd);
     } else {
-        tail->next = new_tail;
+        mtx_unlock(&queue_mtx);
     }
-    tail = new_tail;
-    queue_size++;
-    mtx_unlock(&queue_mtx);
-    cnd_signal(&queue_not_empty_cnd);
 }
 
 void *dequeue(void) {
     void *item;
+    cnd_t queue_not_empty_cnd;
+    struct queue_node *new_tail_ptr;
     mtx_lock(&queue_mtx);
-    while (head == NULL) {
-        waiting_cnt++;
+    while (data_queue.head == NULL) {
+        cnd_init(&queue_not_empty_cnd);
+        new_tail_ptr = queue_node_init(&queue_not_empty_cnd);
+        queue_enqueue(&dequeue_order, new_tail_ptr);
         cnd_wait(&queue_not_empty_cnd, &queue_mtx);
-        waiting_cnt--;
+        cnd_destroy(&queue_not_empty_cnd);
     }
 
-    item = pop_queue_head();
+    item = pop_queue_head(&data_queue);
+    visited_items++;
     mtx_unlock(&queue_mtx);
     return item;
 }
 
 bool tryDequeue(void **item_ptr) {
-    if (head == NULL) {
+    if (data_queue.head == NULL) {
         return false;
     }
 
     mtx_lock(&queue_mtx);
-    *item_ptr = pop_queue_head();
+    *item_ptr = pop_queue_head(&data_queue);
+    visited_items++;
     mtx_unlock(&queue_mtx);
     return true;
 }
 
 size_t size(void) {
-    return queue_size;
+    return data_queue.size;
 }
 
 size_t waiting(void) {
-    return waiting_cnt;
+    return dequeue_order.size;
 }
 
 size_t visited(void) {
