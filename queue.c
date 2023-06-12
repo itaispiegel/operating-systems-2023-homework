@@ -60,6 +60,10 @@ static inline void *pop_queue_head(struct queue *q) {
     return item;
 }
 
+static inline bool empty(struct queue *q) {
+    return q->size == 0;
+}
+
 void initQueue(void) {
     init_queue_struct(&data_queue);
     init_queue_struct(&dequeue_order);
@@ -79,10 +83,10 @@ void enqueue(void *item) {
     cnd_t *queue_not_empty_cnd_ptr;
     mtx_lock(&queue_mtx);
     queue_enqueue(&data_queue, new_tail_ptr);
-    if (dequeue_order.head != NULL) {
+    if (!empty(&dequeue_order)) {
         queue_not_empty_cnd_ptr = pop_queue_head(&dequeue_order);
-        mtx_unlock(&queue_mtx);
         cnd_signal(queue_not_empty_cnd_ptr);
+        mtx_unlock(&queue_mtx);
     } else {
         mtx_unlock(&queue_mtx);
     }
@@ -93,7 +97,7 @@ void *dequeue(void) {
     cnd_t queue_not_empty_cnd;
     struct queue_node *new_tail_ptr;
     mtx_lock(&queue_mtx);
-    while (data_queue.head == NULL) {
+    while (empty(&data_queue)) {
         cnd_init(&queue_not_empty_cnd);
         new_tail_ptr = queue_node_init(&queue_not_empty_cnd);
         queue_enqueue(&dequeue_order, new_tail_ptr);
