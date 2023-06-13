@@ -80,16 +80,12 @@ void destroyQueue(void) {
 
 void enqueue(void *item) {
     struct queue_node *new_tail_ptr = queue_node_init(item);
-    cnd_t *queue_not_empty_cnd_ptr;
     mtx_lock(&queue_mtx);
     queue_enqueue(&data_queue, new_tail_ptr);
     if (!empty(&dequeue_order)) {
-        queue_not_empty_cnd_ptr = pop_queue_head(&dequeue_order);
-        cnd_signal(queue_not_empty_cnd_ptr);
-        mtx_unlock(&queue_mtx);
-    } else {
-        mtx_unlock(&queue_mtx);
+        cnd_signal(dequeue_order.head->item);
     }
+    mtx_unlock(&queue_mtx);
 }
 
 void *dequeue(void) {
@@ -97,16 +93,28 @@ void *dequeue(void) {
     cnd_t queue_not_empty_cnd;
     struct queue_node *new_tail_ptr;
     mtx_lock(&queue_mtx);
-    while (empty(&data_queue)) {
-        cnd_init(&queue_not_empty_cnd);
-        new_tail_ptr = queue_node_init(&queue_not_empty_cnd);
-        queue_enqueue(&dequeue_order, new_tail_ptr);
-        cnd_wait(&queue_not_empty_cnd, &queue_mtx);
-        cnd_destroy(&queue_not_empty_cnd);
+    if (empty(&dequeue_order) && !empty(&data_queue)) {
+        item = pop_queue_head(&data_queue);
+        visited_items++;
+        mtx_unlock(&queue_mtx);
+        return item;
     }
 
+    cnd_init(&queue_not_empty_cnd);
+    new_tail_ptr = queue_node_init(&queue_not_empty_cnd);
+    queue_enqueue(&dequeue_order, new_tail_ptr);
+    do {
+        cnd_wait(&queue_not_empty_cnd, &queue_mtx);
+    } while (dequeue_order.head->item != &queue_not_empty_cnd ||
+             empty(&data_queue));
+
+    cnd_destroy(&queue_not_empty_cnd);
+    pop_queue_head(&dequeue_order);
     item = pop_queue_head(&data_queue);
     visited_items++;
+    if (!empty(&dequeue_order)) {
+        cnd_signal(dequeue_order.head->item);
+    }
     mtx_unlock(&queue_mtx);
     return item;
 }
