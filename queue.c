@@ -8,7 +8,7 @@
 #include "queue.h"
 
 struct queue_node {
-    void *item;
+    void *data;
     struct queue_node *next;
 };
 
@@ -26,7 +26,7 @@ static mtx_t queue_mtx;
 
 static inline struct queue_node *queue_node_init(void *item) {
     struct queue_node *node = malloc(sizeof(struct queue_node));
-    node->item = item;
+    node->data = item;
     node->next = NULL;
     return node;
 }
@@ -51,7 +51,7 @@ static inline void *pop_queue_head(struct queue *q) {
     void *item;
     struct queue_node *prev_head;
     prev_head = q->head;
-    item = q->head->item;
+    item = q->head->data;
     if ((q->head = q->head->next) == NULL) {
         q->tail = NULL;
     }
@@ -83,7 +83,7 @@ void enqueue(void *item) {
     mtx_lock(&queue_mtx);
     queue_enqueue(&data_queue, new_tail_ptr);
     if (!empty(&dequeue_order)) {
-        cnd_signal(dequeue_order.head->item);
+        cnd_signal(dequeue_order.head->data);
     }
     mtx_unlock(&queue_mtx);
 }
@@ -93,27 +93,22 @@ void *dequeue(void) {
     cnd_t queue_not_empty_cnd;
     struct queue_node *new_tail_ptr;
     mtx_lock(&queue_mtx);
-    if (empty(&dequeue_order) && !empty(&data_queue)) {
-        item = pop_queue_head(&data_queue);
-        visited_items++;
-        mtx_unlock(&queue_mtx);
-        return item;
+    if (!empty(&dequeue_order) || empty(&data_queue)) {
+        cnd_init(&queue_not_empty_cnd);
+        new_tail_ptr = queue_node_init(&queue_not_empty_cnd);
+        queue_enqueue(&dequeue_order, new_tail_ptr);
+        do {
+            cnd_wait(&queue_not_empty_cnd, &queue_mtx);
+        } while (dequeue_order.head->data != &queue_not_empty_cnd ||
+                 empty(&data_queue));
+
+        cnd_destroy(&queue_not_empty_cnd);
+        pop_queue_head(&dequeue_order);
     }
-
-    cnd_init(&queue_not_empty_cnd);
-    new_tail_ptr = queue_node_init(&queue_not_empty_cnd);
-    queue_enqueue(&dequeue_order, new_tail_ptr);
-    do {
-        cnd_wait(&queue_not_empty_cnd, &queue_mtx);
-    } while (dequeue_order.head->item != &queue_not_empty_cnd ||
-             empty(&data_queue));
-
-    cnd_destroy(&queue_not_empty_cnd);
-    pop_queue_head(&dequeue_order);
     item = pop_queue_head(&data_queue);
     visited_items++;
     if (!empty(&dequeue_order)) {
-        cnd_signal(dequeue_order.head->item);
+        cnd_signal(dequeue_order.head->data);
     }
     mtx_unlock(&queue_mtx);
     return item;
