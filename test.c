@@ -9,6 +9,7 @@
 #define MAX_SIZE 1000
 #define NUM_THREADS_CONC 100
 #define NUM_THREADS 50
+#define SECOND_IN_NANOSECONDS 1000000000
 
 int dequeue_with_sleep(void *arg);
 int enqueueItems(void *arg);
@@ -183,7 +184,11 @@ void test_basic_concurrent_enqueue_dequeue() {
     for (int i = 0; i < numItems; i++) {
         int *item = (int *)dequeue();
         printf("Dequeued item: %d\n", *item);
+        free(item);
     }
+
+    thrd_join(enqueueThread_a, NULL);
+    thrd_join(enqueueThread_b, NULL);
 
     destroyQueue();
 
@@ -199,7 +204,7 @@ int enqueueItems(void *arg) {
         *item = i + 1;
         // printf("%d\n", *item);
         enqueue((void *)item);
-        printf("Enqueued item: %d\n", *item);
+        printf("Enqueued item: %d\n", i + 1);
     }
     thrd_exit(0);
 }
@@ -299,7 +304,9 @@ void test_fifo_order() {
     for (int i = 0; i < NUM_THREADS; i++) {
         dequeue_order[i] = -1; // Initialize the dequeue order
         thrd_create(&consumer_threads[i], consumer_thread, &dequeue_order[i]);
-        thrd_sleep(&(const struct timespec){.tv_nsec = 5000000}, NULL);
+        thrd_sleep(
+            &(const struct timespec){.tv_nsec = 0.005 * SECOND_IN_NANOSECONDS},
+            NULL);
     }
 
     // Create producer thread
@@ -331,6 +338,7 @@ int consumer_thread(void *arg) {
     void *item = dequeue();
 
     *dequeue_order = *(int *)item;
+    free(item);
 
     return 0;
 }
@@ -391,7 +399,7 @@ int enqueue_thread(void *arg) {
     *item = thrd_current(); // Set item value to thread index
 
     enqueue(item);
-    printf("Thread %lx enqueued item: %lx\n", thrd_current(), *item);
+    printf("Thread %lx enqueued item: %lx\n", thrd_current(), thrd_current());
 
     return 0;
 }
@@ -399,7 +407,7 @@ int enqueue_thread(void *arg) {
 int dequeue_thread(void *arg) {
     unsigned long *item = (unsigned long *)dequeue();
     printf("Thread %lx dequeued item: %lx\n", thrd_current(), *item);
-    // free(item);
+    free(item);
 
     return 0;
 }
@@ -410,7 +418,7 @@ void test_edge_cases() {
     initQueue();
 
     // Dequeue from an empty queue - Should block until an item is enqueued
-    // FIXME: comment this in, make sure it blocks, the comment it back out
+    // FIXME: comment this in, make sure it blocks, then comment it back out
     // int *item = (int *)dequeue();
     // assert(item == NULL);
     // printf("Dequeue from an empty queue - Assertion failed: Expected
