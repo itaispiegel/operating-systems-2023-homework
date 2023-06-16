@@ -4,9 +4,12 @@
 #include <netinet/ip.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/param.h>
 #include <sys/sendfile.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+#define MAX_BUFFER_SIZE 1048576
 
 struct arguments {
     char *ip;
@@ -34,12 +37,12 @@ unsigned int file_size(int fd) {
     unsigned int fsize;
     if ((fsize = lseek(fd, 0, SEEK_END)) < 0) {
         perror("lseek");
-        return -1;
+        exit(1);
     }
 
     if (lseek(fd, 0, SEEK_SET) < 0) {
         perror("lseek");
-        return -1;
+        exit(1);
     }
     return fsize;
 }
@@ -48,8 +51,8 @@ int main(int argc, char *argv[]) {
     struct arguments args;
     int exit_code, fd, server_sock;
     struct sockaddr_in addr;
-    unsigned int N, N_nl, pcc_nl;
-    ssize_t result;
+    unsigned int N, N_nl, pcc_nl, buffer_size, sent_bytes_cnt = 0;
+    char *buffer;
 
     if ((exit_code = parse_arguments(argc, argv, &args)) != EXIT_SUCCESS) {
         return exit_code;
@@ -61,7 +64,6 @@ int main(int argc, char *argv[]) {
     }
 
     N = file_size(fd);
-
     addr.sin_family = AF_INET;
     addr.sin_port = htons(args.port);
     addr.sin_addr.s_addr = inet_addr(args.ip);
@@ -69,7 +71,6 @@ int main(int argc, char *argv[]) {
         perror("inet_pton");
     }
 
-    // TODO Maybe use TCP_CORK
     if ((server_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("socket");
         return EXIT_FAILURE;
@@ -84,9 +85,13 @@ int main(int argc, char *argv[]) {
     N_nl = htonl(N);
     write(server_sock, &N_nl, 4);
 
-    // TODO Handle not all data sent
-    if ((result = sendfile(server_sock, fd, NULL, N)) < 0) {
-        perror("sendfile");
+    while (sent_bytes_cnt < N) {
+        buffer_size = MIN(MAX_BUFFER_SIZE, N);
+        buffer = malloc(buffer_size);
+        read(fd, buffer, buffer_size);
+        write(server_sock, buffer, buffer_size);
+        sent_bytes_cnt += buffer_size;
+        free(buffer);
     }
 
     if (read(server_sock, &pcc_nl, 4) < 0) {
