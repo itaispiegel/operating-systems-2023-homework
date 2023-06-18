@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <netinet/ip.h>
@@ -64,9 +63,9 @@ int main(int argc, char *argv[]) {
     }
 
     N = file_size(fd);
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(args.port);
-    addr.sin_addr.s_addr = inet_addr(args.ip);
+    addr = (struct sockaddr_in){.sin_family = AF_INET,
+                                .sin_port = htons(args.port),
+                                .sin_addr.s_addr = inet_addr(args.ip)};
     if (inet_pton(AF_INET, args.ip, &addr.sin_addr.s_addr) <= 0) {
         perror("inet_pton");
     }
