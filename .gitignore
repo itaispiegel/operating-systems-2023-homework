@@ -52,7 +52,15 @@ Mkfile.old
 dkms.conf
 
 .vscode/
+
 os-debug
 
 myshell
 myshell-debug
+!.vscode/c_cpp_properties.json
+
+message_sender
+message_reader
+
+tester
+tester2

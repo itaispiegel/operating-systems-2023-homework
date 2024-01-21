@@ -1,0 +1,26 @@
+{
+    "folders": [
+        {
+            "path": ".",
+            "name": "base"
+        },
+        {
+            "path": "ex1"
+        },
+        {
+            "path": "ex2"
+        },
+        {
+            "path": "ex3"
+        }
+    ],
+    "settings": {
+        "files.exclude": {
+            "module": true,
+            "user": true
+        },
+        "files.associations": {
+            "*.h": "c",
+        }
+    }
+}
