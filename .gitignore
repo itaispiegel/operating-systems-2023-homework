@@ -53,3 +53,6 @@ dkms.conf
 
 .vscode/
 os-debug
+
+myshell
+myshell-debug
