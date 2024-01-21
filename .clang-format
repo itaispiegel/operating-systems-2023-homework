@@ -1,9 +1,9 @@
 ---
+AllowShortFunctionsOnASingleLine: false
+SeparateDefinitionBlocks: Always
 Language: Cpp
 IndentWidth: 4
 ---
 Language: Json
 IndentWidth: 4
 ---
-AllowShortFunctionsOnASingleLine: false
-SeparateDefinitionBlocks: Always
