@@ -16,7 +16,9 @@ inline uint16_t get_trie_level(uint64_t vpn, uint8_t level) {
  * Receive a page table entry of any level, and return whether the valid bit is
  * set.
  */
-inline bool is_entry_valid(uint64_t pte) { return pte & 0x1; }
+inline bool is_entry_valid(uint64_t pte) {
+    return pte & 0x1;
+}
 
 void page_table_update(uint64_t pt, uint64_t vpn, uint64_t ppn) {
     uint64_t *curr_table = (uint64_t *)phys_to_virt(pt << 12);

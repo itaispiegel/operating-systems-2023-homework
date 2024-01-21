@@ -222,4 +222,6 @@ int process_arglist(int count, char **arglist) {
     return true;
 }
 
-int finalize(void) { return 0; }
+int finalize(void) {
+    return 0;
+}

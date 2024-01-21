@@ -23,11 +23,17 @@ void test_suite_2(void);
 
 static char *pages[NPAGES];
 
-uint64_t get_random(uint64_t mask) { return rand() & mask; }
+uint64_t get_random(uint64_t mask) {
+    return rand() & mask;
+}
 
-uint64_t get_random_vpn() { return get_random(VPN_MASK); }
+uint64_t get_random_vpn() {
+    return get_random(VPN_MASK);
+}
 
-uint64_t get_random_ppn() { return get_random(VPN_MASK); }
+uint64_t get_random_ppn() {
+    return get_random(VPN_MASK);
+}
 
 uint64_t alloc_page_frame(void) {
     static uint64_t nalloc;

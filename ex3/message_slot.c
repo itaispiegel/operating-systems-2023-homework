@@ -35,7 +35,9 @@ static void free_radix_tree(struct radix_tree_root *root) {
     void **slot;
 
     if (root != NULL) {
-        radix_tree_for_each_slot(slot, root, &iter, 0) { kfree(*slot); }
+        radix_tree_for_each_slot(slot, root, &iter, 0) {
+            kfree(*slot);
+        }
     }
 }
 
@@ -111,6 +113,7 @@ ssize_t device_read(struct file *file, char __user *buffer, size_t length,
 
     return channel->message_size;
 }
+
 ssize_t device_write(struct file *file, const char __user *buffer,
                      size_t length, loff_t *offset) {
     struct file_data *fdata = file->private_data;

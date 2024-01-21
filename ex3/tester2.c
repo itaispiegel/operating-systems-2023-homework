@@ -185,6 +185,7 @@ void free_all() {
         }
     }
 }
+
 int perform_random_move(int fd) {
     int rc = 0, move = rand() % 2;
 
